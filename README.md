@@ -2,10 +2,15 @@
 
 This repository contains the data and sample code you will need to start the Uncle Joe's Coffee Company project.
 
-There are two components:
+There are three components:
 
+- [GCP Setup](#adding-teammates-to-your-gcp-project)
 - [Database Setup](#database-setup)
 - [API Example](#api-example)
+
+## Adding Teammates to Your GCP Project
+
+Because you are working in a group, you should all share a single Google Cloud Project. See **[GCP.md](GCP.md)** for step-by-step instructions on adding teammates to your Google Cloud Project using IAM. All team members will be granted the Owner role so everyone has equal access to shared resources like BigQuery.
 
 ## Database Setup
 
