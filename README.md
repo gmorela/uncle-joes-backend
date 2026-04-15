@@ -10,7 +10,7 @@ There are three components:
 
 ## Adding Teammates to Your GCP Project
 
-Because you are working in a group, you should all share a single Google Cloud Project. See **[GCP.md](GCP.md)** for step-by-step instructions on adding teammates to your Google Cloud Project using IAM. All team members will be granted the Owner role so everyone has equal access to shared resources like BigQuery.
+Because you are working in a group, you should all share a single Google Cloud Project. S-p0oee **[GCP.md](GCP.md)** for step-by-step instructions on adding teammates to your Google Cloud Project using IAM. All team members will be granted the Owner role so everyone has equal access to shared resources like BigQuery.
 
 ## Database Setup
 
@@ -44,44 +44,30 @@ Included here are five CSV files that represent the tables in your database:
 
 ### Step 3 — Create the tables
 
-1. In the BigQuery console, click **+ Compose a new query**
-2. Open `create_tables.sql` from this folder and paste the entire contents into the query editor
-3. At the top of the pasted SQL, replace `your-project` with your actual GCP project ID (visible in the top-left of the console, e.g., `mgmt545-yourname`)
-4. Click **Run**
+**You will repeat these steps for EACH table in the dataset (5 tables total)**
 
-You should see five new tables appear under `uncle_joes` in the left panel:
-`locations`, `menu_items`, `members`, `orders`, `order_items`
+1. In the BigQuery console, click your new dataset in the menu
+2. From the top of the detail view, click the **⊞ Create Table** button
+3. In the modal window that appears set the following:
+    * Create empty table from **Upload**
+    * Select file → **Browse** Find the *.csv file on your local computer and select it
+    * File format → **CSV**
+    * In **Table** give the table a name
+    * 🚨IMPORTANT🚨 Check the box for **Auto detect** Schema
+    * Leave other settings at their default
+4. Click **Create table**
 
----
-
-### Step 4 — Import the CSV files
-
-Repeat these steps for each table/file pair:
-
-| Table | CSV file |
-|-------|----------|
-| `locations` | `uncle_joes_locations.csv` |
-| `menu_items` | `uncle_joes_menu.csv` |
-| `members` | `uncle_joes_coffee_club_members.csv` |
-| `orders` | `uncle_joes_orders.csv` |
-| `order_items` | `uncle_joes_order_items.csv` |
-
-**For each one:**
-
-1. Click the table name in the left panel
-2. Click **Import** (toolbar at the top right of the table view)
-3. Under **Create table from**, choose **Upload**
-4. Click **Browse** and select the matching CSV file
-5. Set **File format** to `CSV`
-6. Under **Schema**, choose **Auto-detect** — leave everything else as-is
-7. Expand **Advanced options** → set **Header rows to skip** to `1`
-8. Click **Create table**
-
-> **Note:** BigQuery will overwrite the table's data if you import again. That's fine for regenerating fresh data.
+> [!NOTE]
+> Your table names should be _exactly_ the following:
+> - locations
+> - menu_items
+> - orders
+> - order_items
+> - members
 
 ---
 
-### Step 5 — Verify the import
+### Step 4 — Verify the import
 
 Run a quick check on each table:
 
