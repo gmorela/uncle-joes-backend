@@ -402,3 +402,32 @@ def cancel_order(order_id: str):
     run_query(item_query, params)
     run_query(order_query, params)
     return {"message": "Order and associated items deleted"}
+
+# --- REWARDS / LOYALTY POINTS ---
+
+@app.get("/members/{member_id}/rewards")
+def get_member_rewards(member_id: str):
+    """
+    Calculates the total loyalty points for a member.
+    Earns 1 point for every whole dollar spent per order, rounded down.
+    """
+    # This SQL query takes every order_total for the member, 
+    # rounds it down to the nearest whole dollar (FLOOR), 
+    # and then adds them all together (SUM).
+    query = f"""
+        SELECT CAST(SUM(FLOOR(order_total)) AS INT64) as total_points
+        FROM `{GCP_PROJECT}.{DATASET}.orders`
+        WHERE member_id = @member_id
+    """
+    params = [bigquery.ScalarQueryParameter("member_id", "STRING", member_id)]
+    results = run_query(query, params)
+    
+    # If a member exists but hasn't placed any orders yet, 
+    # BigQuery will return None, so we default to 0.
+    points_balance = results[0].get("total_points") if results else 0
+    
+    return {
+        "member_id": member_id,
+        "points_balance": points_balance if points_balance is not None else 0
+    }
+
