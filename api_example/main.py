@@ -37,6 +37,46 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- PYDANTIC MODELS FOR POST/PUT ---
+
+class Location(BaseModel):
+    id: str
+    city: str
+    state: str
+    wifi: bool
+    drive_thru: bool
+    address_one: str
+    zip_code: str
+
+class MemberCreate(BaseModel):
+    id: str
+    first_name: str
+    last_name: str
+    email: str
+    home_store: str
+    password: str  # In a real app, you'd hash this before saving
+
+class MenuItem(BaseModel):
+    id: str
+    name: str
+    category: str
+    size: str
+    calories: int
+    price: float
+
+class Order(BaseModel):
+    order_id: str
+    member_id: Optional[str] = None
+    store_id: str
+    order_total: float
+
+class OrderItem(BaseModel):
+    id: str
+    order_id: str
+    menu_item_id: str
+    quantity: int
+    price: float
+
 class LoginRequest(BaseModel):
     email: str
     password: str
@@ -174,3 +214,191 @@ def get_menu_details_for_order(order_id: str):
     """
     params = [bigquery.ScalarQueryParameter("order_id", "STRING", order_id)]
     return run_query(query, params)
+
+
+# --- LOCATIONS (POST, PUT, DELETE) ---
+
+@app.post("/locations")
+def create_location(loc: Location):
+    query = f"""
+        INSERT INTO `{GCP_PROJECT}.{DATASET}.locations` (id, city, state, wifi, drive_thru, address_one, zip_code)
+        VALUES (@id, @city, @state, @wifi, @drive_thru, @address_one, @zip_code)
+    """
+    params = [
+        bigquery.ScalarQueryParameter("id", "STRING", loc.id),
+        bigquery.ScalarQueryParameter("city", "STRING", loc.city),
+        bigquery.ScalarQueryParameter("state", "STRING", loc.state),
+        bigquery.ScalarQueryParameter("wifi", "BOOL", loc.wifi),
+        bigquery.ScalarQueryParameter("drive_thru", "BOOL", loc.drive_thru),
+        bigquery.ScalarQueryParameter("address_one", "STRING", loc.address_one),
+        bigquery.ScalarQueryParameter("zip_code", "STRING", loc.zip_code),
+    ]
+    run_query(query, params)
+    return {"message": "Location created successfully", "id": loc.id}
+
+@app.put("/locations/{location_id}")
+def update_location(location_id: str, loc: Location):
+    query = f"""
+        UPDATE `{GCP_PROJECT}.{DATASET}.locations`
+        SET city = @city, state = @state, wifi = @wifi, drive_thru = @drive_thru
+        WHERE id = @id
+    """
+    params = [
+        bigquery.ScalarQueryParameter("id", "STRING", location_id),
+        bigquery.ScalarQueryParameter("city", "STRING", loc.city),
+        bigquery.ScalarQueryParameter("state", "STRING", loc.state),
+        bigquery.ScalarQueryParameter("wifi", "BOOL", loc.wifi),
+        bigquery.ScalarQueryParameter("drive_thru", "BOOL", loc.drive_thru),
+    ]
+    run_query(query, params)
+    return {"message": "Location updated"}
+
+@app.delete("/locations/{location_id}")
+def delete_location(location_id: str):
+    query = f"DELETE FROM `{GCP_PROJECT}.{DATASET}.locations` WHERE id = @id"
+    params = [bigquery.ScalarQueryParameter("id", "STRING", location_id)]
+    run_query(query, params)
+    return {"message": "Location deleted"}
+
+
+# --- MEMBERS (POST, PUT, DELETE) ---
+
+@app.post("/members")
+def create_member(mem: MemberCreate):
+    # Note: In a real pilot, you'd use bcrypt.hashpw here before saving!
+    query = f"""
+        INSERT INTO `{GCP_PROJECT}.{DATASET}.members` (id, first_name, last_name, email, home_store, password)
+        VALUES (@id, @first_name, @last_name, @email, @home_store, @password)
+    """
+    params = [
+        bigquery.ScalarQueryParameter("id", "STRING", mem.id),
+        bigquery.ScalarQueryParameter("first_name", "STRING", mem.first_name),
+        bigquery.ScalarQueryParameter("last_name", "STRING", mem.last_name),
+        bigquery.ScalarQueryParameter("email", "STRING", mem.email),
+        bigquery.ScalarQueryParameter("home_store", "STRING", mem.home_store),
+        bigquery.ScalarQueryParameter("password", "STRING", mem.password),
+    ]
+    run_query(query, params)
+    return {"message": "Member created", "id": mem.id}
+
+@app.put("/members/{member_id}")
+def update_member(member_id: str, mem: MemberCreate):
+    query = f"""
+        UPDATE `{GCP_PROJECT}.{DATASET}.members`
+        SET first_name = @first_name, 
+            last_name = @last_name, 
+            email = @email, 
+            home_store = @home_store,
+            password = @password
+        WHERE id = @id
+    """
+    params = [
+        bigquery.ScalarQueryParameter("id", "STRING", member_id),
+        bigquery.ScalarQueryParameter("first_name", "STRING", mem.first_name),
+        bigquery.ScalarQueryParameter("last_name", "STRING", mem.last_name),
+        bigquery.ScalarQueryParameter("email", "STRING", mem.email),
+        bigquery.ScalarQueryParameter("home_store", "STRING", mem.home_store),
+        bigquery.ScalarQueryParameter("password", "STRING", mem.password),
+    ]
+    run_query(query, params)
+    return {"message": "Member profile updated"}
+
+@app.delete("/members/{member_id}")
+def delete_member(member_id: str):
+    query = f"DELETE FROM `{GCP_PROJECT}.{DATASET}.members` WHERE id = @id"
+    params = [bigquery.ScalarQueryParameter("id", "STRING", member_id)]
+    run_query(query, params)
+    return {"message": "Member deleted"}
+
+
+# --- MENU ITEMS (POST, PUT, DELETE) ---
+
+@app.post("/menu")
+def create_menu_item(item: MenuItem):
+    query = f"""
+        INSERT INTO `{GCP_PROJECT}.{DATASET}.menu_items` (id, name, category, size, calories, price)
+        VALUES (@id, @name, @category, @size, @calories, @price)
+    """
+    params = [
+        bigquery.ScalarQueryParameter("id", "STRING", item.id),
+        bigquery.ScalarQueryParameter("name", "STRING", item.name),
+        bigquery.ScalarQueryParameter("category", "STRING", item.category),
+        bigquery.ScalarQueryParameter("size", "STRING", item.size),
+        bigquery.ScalarQueryParameter("calories", "INT64", item.calories),
+        bigquery.ScalarQueryParameter("price", "NUMERIC", item.price),
+    ]
+    run_query(query, params)
+    return {"message": "Menu item added"}
+
+@app.put("/menu/{item_id}")
+def update_menu_item(item_id: str, item: MenuItem):
+    query = f"""
+        UPDATE `{GCP_PROJECT}.{DATASET}.menu_items`
+        SET name = @name, 
+            category = @category, 
+            size = @size, 
+            calories = @calories, 
+            price = @price
+        WHERE id = @id
+    """
+    params = [
+        bigquery.ScalarQueryParameter("id", "STRING", item_id),
+        bigquery.ScalarQueryParameter("name", "STRING", item.name),
+        bigquery.ScalarQueryParameter("category", "STRING", item.category),
+        bigquery.ScalarQueryParameter("size", "STRING", item.size),
+        bigquery.ScalarQueryParameter("calories", "INT64", item.calories),
+        bigquery.ScalarQueryParameter("price", "NUMERIC", item.price),
+    ]
+    run_query(query, params)
+    return {"message": "Menu item updated"}
+
+@app.delete("/menu/{item_id}")
+def delete_menu_item(item_id: str):
+    query = f"DELETE FROM `{GCP_PROJECT}.{DATASET}.menu_items` WHERE id = @id"
+    params = [bigquery.ScalarQueryParameter("id", "STRING", item_id)]
+    run_query(query, params)
+    return {"message": "Item removed from menu"}
+
+
+# --- ORDERS & ORDER ITEMS (POST, DELETE) ---
+
+@app.post("/orders")
+def create_order(order: Order):
+    query = f"""
+        INSERT INTO `{GCP_PROJECT}.{DATASET}.orders` (order_id, member_id, store_id, order_total, order_date)
+        VALUES (@id, @member_id, @store_id, @total, CURRENT_TIMESTAMP())
+    """
+    params = [
+        bigquery.ScalarQueryParameter("id", "STRING", order.order_id),
+        bigquery.ScalarQueryParameter("member_id", "STRING", order.member_id),
+        bigquery.ScalarQueryParameter("store_id", "STRING", order.store_id),
+        bigquery.ScalarQueryParameter("total", "NUMERIC", order.order_total),
+    ]
+    run_query(query, params)
+    return {"message": "Order placed", "order_id": order.order_id}
+
+@app.post("/order-items")
+def add_item_to_order(item: OrderItem):
+    query = f"""
+        INSERT INTO `{GCP_PROJECT}.{DATASET}.order_items` (id, order_id, menu_item_id, quantity, price)
+        VALUES (@id, @order_id, @menu_id, @qty, @price)
+    """
+    params = [
+        bigquery.ScalarQueryParameter("id", "STRING", item.id),
+        bigquery.ScalarQueryParameter("order_id", "STRING", item.order_id),
+        bigquery.ScalarQueryParameter("menu_id", "STRING", item.menu_item_id),
+        bigquery.ScalarQueryParameter("qty", "INT64", item.quantity),
+        bigquery.ScalarQueryParameter("price", "NUMERIC", item.price),
+    ]
+    run_query(query, params)
+    return {"message": "Item added to order"}
+
+@app.delete("/orders/{order_id}")
+def cancel_order(order_id: str):
+    # This deletes the order and all items associated with it
+    item_query = f"DELETE FROM `{GCP_PROJECT}.{DATASET}.order_items` WHERE order_id = @id"
+    order_query = f"DELETE FROM `{GCP_PROJECT}.{DATASET}.orders` WHERE order_id = @id"
+    params = [bigquery.ScalarQueryParameter("id", "STRING", order_id)]
+    run_query(item_query, params)
+    run_query(order_query, params)
+    return {"message": "Order and associated items deleted"}
